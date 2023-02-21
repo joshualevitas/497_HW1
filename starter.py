@@ -92,6 +92,7 @@ class FFNN(nn.Module):
         return x
                 
     def init_weights(self):
+        pass
 #          {perform initializations}
         
         
@@ -115,6 +116,7 @@ class LSTM(nn.Module):
     
     def init_weights(self):
 #          {perform initializations}
+        pass
         
     
     def detach_hidden(self, hidden):
@@ -153,14 +155,18 @@ def main():
     
     if params.model == 'FFNN':
 #          {add code to instantiate the model, train for K epochs and save model to disk}
+        pass
         
     if params.model == 'LSTM':
+        pass
 #          {add code to instantiate the model, train for K epochs and save model to disk}
 
     if params.model == 'FFNN_CLASSIFY':
+        pass
 #          {add code to instantiate the model, recall model parameters and perform/learn classification}
 
     if params.model == 'LSTM_CLASSIFY':
+        pass
 #          {add code to instantiate the model, recall model parameters and perform/learn classification}
         
     print(params)
