@@ -106,8 +106,9 @@ class LSTM(nn.Module):
         self.n_layers = n_layers
         self.d_hidden = d_hidden
         self.d_model = d_model
-        self.embeds = nn.Embedding(vocab_size,d_model)
+        self.embeds = nn.Embedding(self.vocab_size, d_model)
 #          {perform other initializations needed for the LSTM}
+        # self.model = torch.nn.LSTM(d_model, d_hidden, n_layers, dropout = dropout_rate) #make sure this inputs are correct.
         
     def forward(self,src,h):
         embeds = self.dropout(self.embeds(src))
