@@ -28,7 +28,7 @@ def create_dp(random=True):
         file_arr = filename.split('.')
         if os.path.isfile(f) and len(file_arr) > 1 and file_arr[0] != "blind":
             train = 1 if file_arr[1] == "train" else 0
-            file = open(directory+"/"+filename,mode='r',encoding="utf8")
+            file = open(directory+"/"+filename,mode='r',encoding="utf8", errors='ignore')
             content = file.read()
             text = re.findall(r'<start_bio>((?s)((?:[^\n][\n]?)+))<end_bio>', content)
             text = [line[0].replace('\n','') for line in text]
@@ -83,9 +83,11 @@ class LSTM(nn.Module):
     def __init__(self,dimension):
         super().__init__()
         #
+        pass
         
     def forward(self,text,text_len):
         #
+        pass
     
 def main():
     parser = argparse.ArgumentParser()
@@ -172,3 +174,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+    
