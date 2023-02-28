@@ -14,7 +14,9 @@ from gensim.utils import simple_preprocess
 from gensim.parsing.porter import PorterStemmer
 from gensim import corpora
 from sklearn.metrics import classification_report, accuracy_score, confusion_matrix
+from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
 import json
+import matplotlib.pyplot as plt
 
 torch.manual_seed(497)
 
@@ -73,34 +75,31 @@ class FFNN(nn.Module):
             layers.append(torch.nn.Linear(dims_in[i], dims_out[i]))
             if i < number_of_hidden_layers:
                 layers.append(nn.Tanh())
-        self.net = torch.nn.Sequential(*layers) 
+        self.net = torch.nn.Sequential(*layers)
 
     def forward(self, x):
         return F.softmax(self.net(x), dim=1)
 
 
 class LSTM(nn.Module):
-    def __init__(self,dimension):
+    def __init__(self,in_dim,hid_dim,number_of_hidden_layers):
         super().__init__()
-        #
-        
-    def forward(self,text,text_len):
-        #
+        self.embedding = nn.Embedding(in_dim, 300)
+        self.hid_dim = hid_dim
+        self.lstm = nn.LSTM(input_size=300, hidden_size=self.hid_dim, num_layers=number_of_hidden_layers, batch_first=True, bidirectional=True)
+        self.drop = nn.Dropout(p=0.15)
+        self.fc = nn.Linear(2*self.hid_dim, 1)
+
+    def forward(self,x):
+        inp_len = torch.tensor([len(x)],dtype=torch.int64)
+        packed_output, _ = self.lstm(pack_padded_sequence(self.embedding(x), inp_len, batch_first=True, enforce_sorted=False))
+        output, _ = pad_packed_sequence(packed_output, batch_first=True)
+        out_reduced = torch.cat((output[range(len(output)), inp_len - 1, :self.hid_dim], output[:, 0, self.hid_dim:]), 1)
+        return torch.sigmoid(torch.squeeze(self.fc(self.drop(out_reduced)), 1))
     
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('-d_model', type=int, default=100)
-    parser.add_argument('-d_hidden', type=int, default=100)
-    parser.add_argument('-n_layers', type=int, default=2)
-    parser.add_argument('-batch_size', type=int, default=20)
-    parser.add_argument('-seq_len', type=int, default=30)
-    parser.add_argument('-printevery', type=int, default=5000)
-    parser.add_argument('-window', type=int, default=3)
-    parser.add_argument('-epochs', type=int, default=20)
-    parser.add_argument('-lr', type=float, default=0.001)
-    parser.add_argument('-dropout', type=int, default=0.35)
-    parser.add_argument('-clip', type=int, default=2.0)
-    parser.add_argument('-model', type=str,default='FFNN_CLASSIFY')
+    parser.add_argument('-model', type=str,default='LSTM_CLASSIFY')
     
     params = parser.parse_args()    
     torch.manual_seed(0)
@@ -109,15 +108,19 @@ def main():
     if params.model == 'FFNN':
         dataset_df = create_dp()
         review_dict = corpora.Dictionary(dataset_df['processed_tokens'])
-        model = FFNN(len(review_dict), 500, 2, 4)
-        model.to(device)
+        model = FFNN(len(review_dict), 128, 2, 2).to(device)
         bce_loss = nn.CrossEntropyLoss()
-        optimizer = optim.SGD(model.parameters(), lr=0.001)
+        optimizer = optim.SGD(model.parameters(), lr=0.0001)
         train_df = dataset_df[dataset_df["Train"] == 1]
-        losses = []
-        perps = []
+        valid_df = dataset_df[dataset_df["Train"] == 0]
+        train_perps = []
+        valid_perps = []
         for epoch in range(40):
-            tmp_loss = 0
+            tmp_train_perplexity = 0
+            tmp_valid_perplexity = 0
+            tmp_train_loss = 0
+            tmp_valid_loss = 0
+            model.train()
             for _, X in train_df.iterrows():
                 optimizer.zero_grad()
                 input_vector = torch.zeros(len(review_dict),device=device)
@@ -127,25 +130,123 @@ def main():
                 probs = model(input_vector)
                 target = torch.tensor([X['Class']],device=device)
                 loss = bce_loss(probs, target)
-                tmp_loss += loss.item()
+                tmp_train_loss += loss.item()
+                tmp_train_perplexity += torch.exp(loss).item()
                 loss.backward()
                 optimizer.step()
+
+            model.eval()
+            preds = []
+            y_real = []
+            with torch.no_grad():
+                for _, X in valid_df.iterrows():
+                    input_vector = torch.zeros(len(review_dict),device=device)
+                    for token in X['processed_tokens']:
+                        input_vector[review_dict.token2id[token]] += 1
+                    input_vector = input_vector.view(1, -1).float()
+                    probs = model(input_vector)
+                    target = torch.tensor([X['Class']],device=device)
+                    valid_loss = bce_loss(probs, target)
+                    tmp_valid_loss += valid_loss.item()
+                    tmp_valid_perplexity += torch.exp(valid_loss).item()
+                    preds.append(torch.argmax(probs, dim=1).cpu().numpy()[0])
+                    y_real.append(torch.tensor([X['Class']]).cpu().numpy()[0])
+
             print("Epoch completed: " + str(epoch+1))
-            print("Loss: " + str(tmp_loss/len(train_df)))
-            losses.append(tmp_loss / len(train_df))
-            tmp_loss = 0
-            # torch.save(model.state_dict(), "ffnn.t1")
+            print("Training Perplexity: "+ str(tmp_train_perplexity/len(train_df)))
+            print("Validation Perplexity: "+ str(tmp_valid_perplexity/len(valid_df)))
+            print("Training Loss: "+ str(tmp_train_loss/len(train_df)))
+            print("Validation Loss: "+ str(tmp_valid_loss/len(valid_df)))
+            print("----------------------------------")
+            train_perps.append(tmp_train_perplexity / len(train_df))
+            valid_perps.append(tmp_valid_perplexity / len(valid_df))
+            torch.save(model.state_dict(), "ffnn.t1")
         torch.save(model.state_dict(), "ffnn.t1")
+        print(classification_report(y_real,preds))
+        print(accuracy_score(y_real, preds))
+        print(confusion_matrix(y_real,preds))
+        plt.figure()
+        plt.plot(range(len(train_perps)),train_perps,'r-',label='Train')
+        plt.plot(range(len(valid_perps)),valid_perps,'b-',label='Valid')
+        plt.xlabel("Epoch")
+        plt.ylabel("Perplexity")
+        plt.legend(loc="upper left")
+        plt.title("Learning Curve for FFNN")
+        plt.savefig("ffnn_plot.png")
 
     if params.model == 'LSTM':
-        return
-#          {add code to instantiate the model, train for K epochs and save model to disk}
+        dataset_df = create_dp()
+        review_dict = corpora.Dictionary(dataset_df['processed_tokens'])
+        vocab_size = len(review_dict)
+        model = LSTM(vocab_size,128,3).to(device)
+        bce_loss = nn.BCELoss()
+        optimizer = optim.Adam(model.parameters(), lr=0.001)
+        train_df = dataset_df[dataset_df["Train"] == 1]
+        valid_df = dataset_df[dataset_df["Train"] == 0]
+        train_perps = []
+        valid_perps = []
+        for epoch in range(5):
+            tmp_train_perplexity = 0
+            tmp_valid_perplexity = 0
+
+            model.train()
+            for _, X in train_df.iterrows():
+                if X["processed_tokens"] == []:
+                    arr = [review_dict.token2id[token] for token in ["of"]]
+                else:
+                    arr = [review_dict.token2id[token] for token in X["processed_tokens"]]
+                inp_text = torch.tensor([arr],dtype=torch.int64).to(device)
+                probs = model(inp_text)
+                target = torch.tensor([X['Class']],device=device)
+                loss = bce_loss(probs.float(), target.float())
+                tmp_train_perplexity += torch.exp(loss).item()
+                optimizer.zero_grad()
+                loss.backward()
+                optimizer.step()    
+
+            preds = []
+            y_real = []
+            model.eval()
+            with torch.no_grad():
+                for _, X in valid_df.iterrows():
+                    if X["processed_tokens"] == []:
+                        arr = [review_dict.token2id[token] for token in ["of"]]
+                    else:
+                        arr = [review_dict.token2id[token] for token in X["processed_tokens"]]
+                    inp_text = torch.tensor([arr],dtype=torch.int64).to(device)
+                    probs = model(inp_text)
+                    target = torch.tensor([X['Class']],device=device)
+                    loss = bce_loss(probs.float(), target.float())
+                    tmp_valid_perplexity += torch.exp(loss).item()
+                    pred = (model(inp_text) > 0.5).int()
+                    preds.append(torch.tensor([pred]).cpu().numpy()[0])
+                    y_real.append(torch.tensor([X['Class']]).cpu().numpy()[0])
+
+            print("Epoch completed: " + str(epoch+1))
+            print("Training Perplexity: "+ str(tmp_train_perplexity/len(train_df)))
+            print("Validation Perplexity: "+ str(tmp_valid_perplexity/len(valid_df)))
+            print("----------------------------------")
+            train_perps.append(tmp_train_perplexity / len(train_df))
+            valid_perps.append(tmp_valid_perplexity / len(valid_df))
+            torch.save(model.state_dict(), "lstm.t1")
+        torch.save(model.state_dict(), "lstm.t1")
+        print(classification_report(y_real,preds))
+        print(accuracy_score(y_real, preds))
+        print(confusion_matrix(y_real,preds))
+        plt.figure()
+        plt.plot(range(len(train_perps)),train_perps,'r-',label='Train')
+        plt.plot(range(len(valid_perps)),valid_perps,'b-',label='Valid')
+        plt.xlabel("Epoch")
+        plt.ylabel("Perplexity")
+        plt.legend(loc="upper left")
+        plt.title("Learning Curve for LSTM")
+        plt.savefig("lstm_plot.png")
 
     if params.model == 'FFNN_CLASSIFY':
         dataset_df = create_dp()
         review_dict = corpora.Dictionary(dataset_df['processed_tokens'])
         valid_df = dataset_df[dataset_df["Train"] == 0]
-        model = FFNN(len(review_dict), 500, 2, 4)
+        model = FFNN(len(review_dict), 128, 2, 2)
         model.load_state_dict(torch.load("ffnn.t1"))
         model.to(device)
         preds = []
@@ -164,11 +265,32 @@ def main():
         print(confusion_matrix(y_real,preds))
 
     if params.model == 'LSTM_CLASSIFY':
-        return
-#          {add code to instantiate the model, recall model parameters and perform/learn classification}
-        
-    print(params)
-    
+        dataset_df = create_dp()
+        review_dict = corpora.Dictionary(dataset_df['processed_tokens'])
+        vocab_size = len(review_dict)
+        valid_df = dataset_df[dataset_df["Train"] == 0]
+        model = LSTM(vocab_size,128,3)
+        model.to(device)
+        model.load_state_dict(torch.load("lstm.t1"))
+        model.to(device)
+        preds = []
+        y_real = []
+        with torch.no_grad():
+            for _, X in valid_df.iterrows():
+                if X["processed_tokens"] == []:
+                    arr = [review_dict.token2id[token] for token in ["of"]]
+                else:
+                    arr = [review_dict.token2id[token] for token in X["processed_tokens"]]
+                inp_text = torch.tensor([arr],dtype=torch.int64).to(device)
+                pred = (model(inp_text) > 0.5).int()
+                preds.append(torch.tensor([pred]).cpu().numpy()[0])
+                y_real.append(torch.tensor([X['Class']]).cpu().numpy()[0])
+        print(classification_report(y_real,preds))
+        print(accuracy_score(y_real, preds))
+        print(confusion_matrix(y_real,preds))
+
+    if params.model == 'CLASSIFY_BEST':
+        print("Classify with best model here")
 
 if __name__ == "__main__":
     main()
