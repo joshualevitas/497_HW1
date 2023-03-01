@@ -14,7 +14,17 @@ Place these files in the source directory of the project code to run.
 
 [Please describe how you organized and used the datasets provided, the operation of your FFNN and hyper-parameter settings. Present the learning curves for training and test perplexity, and report Fakes Detection results in a confusion matrix with labeled axes. Please discuss any limitations of your approach and possible solutions. Please do not exceed one page for this.]
 
-We organized the datasets into subsets of training sets and validation / testing. For each of the sets containing both real and fake biographies (hereafter called "mixed"), we split the corpus using the "<start_bio>...<end_bio>" tags, considering everything in between as a standalone biography.
+### Setup
+
+We organized the datasets into subsets of training sets and validation / testing. We split each corpus using the "<start_bio>...<end_bio>" tags, considering everything in between as a standalone biography. We then extracted the [Real] or [Fake] label and attributed that label to the biography. We stored this information in a pandas dataframe containing 3 columns: *Text*, *Class*, and *Train (type)*. The first contains the biography text, the second contains the label, and the third contains a boolean value indicating whether the biography is part of the training set or not. We then used the *Text* and *Class* columns to train the FFNN and the *Train (type)* column to split the data into training and validation / testing sets. We used the *Text* column to train the FFNN.
+
+### Model Parameters
+
+
+### Results
+
+![Confusion Matrix](https://github.com/joshualevitas/497_HW1/blob/main/figures/Figure_1.png?raw=true)
+
 
 
 ## 2. LSTM
