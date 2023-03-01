@@ -20,11 +20,13 @@ We organized the datasets into subsets of training sets and validation / testing
 
 ### Model Parameters
 
+Namespace(batch_size=20, clip=2.0, d_hidden=100, d_model=100, dropout=0.35, epochs=20, lr=0.001, model='FFNN_CLASSIFY', n_layers=2, printevery=5000, seq_len=30, window=3)
+
 
 ### Results
 
 ![Confusion Matrix](https://github.com/joshualevitas/497_HW1/blob/main/figures/Figure_1.png?raw=true)
-
+![Perplexity](https://github.com/joshualevitas/497_HW1/blob/main/figures/Perplexity_FFNN.JPG?raw=true)
 
 
 ## 2. LSTM
