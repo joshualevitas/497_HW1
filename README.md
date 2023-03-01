@@ -1,6 +1,8 @@
 # 497_HW1
 
 Link to saved FFNN model [here](https://drive.google.com/file/d/1JhyJOzdX5Iw_x4NpYDUdtJYaJtVd-Wsx/view?usp=sharing).
+
+
 Link to saved LSTM model [here](https://drive.google.com/file/d/1W_LZTNmZ5NIhET-sHn-NfqXbMZDkz8Rb/view?usp=sharing).
 
 Place these files in the source directory of the project code to run.
@@ -12,6 +14,7 @@ Place these files in the source directory of the project code to run.
 
 [Please describe how you organized and used the datasets provided, the operation of your FFNN and hyper-parameter settings. Present the learning curves for training and test perplexity, and report Fakes Detection results in a confusion matrix with labeled axes. Please discuss any limitations of your approach and possible solutions. Please do not exceed one page for this.]
 
+We organized the datasets into subsets of training sets and validation / testing. For each of the sets containing both real and fake biographies (hereafter called "mixed"), we split the corpus using the "<start_bio>...<end_bio>" tags, considering everything in between as a standalone biography.
 
 
 ## 2. LSTM
