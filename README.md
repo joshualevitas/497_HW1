@@ -25,7 +25,7 @@ batch_size=20, number_of_hidden_layers=4, input_dim=vocab_size, hidden_dim=128, 
 
 ### Results
 
-![Confusion Matrix](ffnn_plot.png)
+![Confusion Matrix](ffnn_confusion.png)
 ![Perplexity](perplexity_ffnn.png)
 
 ### Limitations and solutions
@@ -47,7 +47,7 @@ batch_size=50, number_of_hidden_layers=2, input_dim=vocab_size, hidden_dim=128, 
 
 ### Results
 
-![Confusion Matrix](lstm_plot.png)
+![Confusion Matrix](lstm_confusion.png)
 ![Perplexity](perplexity_ffnn.png)
 
 ### Limitations and solutions
