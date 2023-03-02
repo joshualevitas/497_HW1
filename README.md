@@ -20,7 +20,7 @@ We organized the datasets into subsets of training sets and validation / testing
 
 ### Model Parameters
 
-batch_size=20, number_of_hidden_layers=4, input_dim=vocab_size, hidden_dim=128, lr=0.001
+batch_size=20, number_of_hidden_layers=4, input_dim=vocab_size, hidden_dim=128, lr=0.001, epochs=40
 
 
 ### Results
@@ -42,7 +42,7 @@ Similarly to the FFNN model, we organized the datasets into subsets of training 
 
 ### Model Parameters
 
-batch_size=50, number_of_hidden_layers=2, input_dim=vocab_size, hidden_dim=128, lr=0.001, dropout_ratio=0.35, bidirectional=true
+batch_size=50, number_of_hidden_layers=2, input_dim=vocab_size, hidden_dim=128, lr=0.001, dropout_ratio=0.35, bidirectional=true, epochs=20
 
 
 ### Results
